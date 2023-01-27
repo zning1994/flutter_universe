@@ -1,330 +1,368 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ViewportOffset;
+import 'package:flutter/rendering.dart';
+
+const Color darkBlue = Color.fromARGB(255, 18, 32, 47);
 
 void main() {
-  runApp(
-    const MaterialApp(
-      home: ExampleInstagramFilterSelection(),
-      debugShowCheckedModeBanner: false,
-    ),
-  );
+  runApp(const MyApp());
 }
 
-@immutable
-class ExampleInstagramFilterSelection extends StatefulWidget {
-  const ExampleInstagramFilterSelection({super.key});
-
-  @override
-  State<ExampleInstagramFilterSelection> createState() =>
-      _ExampleInstagramFilterSelectionState();
-}
-
-class _ExampleInstagramFilterSelectionState
-    extends State<ExampleInstagramFilterSelection> {
-  final _filters = [
-    Colors.white,
-    ...List.generate(
-      Colors.primaries.length,
-      (index) => Colors.primaries[(index * 4) % Colors.primaries.length],
-    )
-  ];
-
-  final _filterColor = ValueNotifier<Color>(Colors.white);
-
-  void _onFilterChanged(Color value) {
-    _filterColor.value = value;
-  }
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black,
-      child: Stack(
+    return MaterialApp(
+      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: darkBlue),
+      debugShowCheckedModeBanner: false,
+      home: const Scaffold(
+        body: Center(
+          child: ExampleParallax(),
+        ),
+      ),
+    );
+  }
+}
+
+class ExampleParallax extends StatelessWidget {
+  const ExampleParallax({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
         children: [
-          Positioned.fill(
-            child: _buildPhotoWithFilter(),
-          ),
-          Positioned(
-            left: 0.0,
-            right: 0.0,
-            bottom: 0.0,
-            child: _buildFilterSelector(),
-          ),
+          for (final location in locations)
+            LocationListItem(
+              imageUrl: location.imageUrl,
+              name: location.name,
+              country: location.place,
+            ),
         ],
       ),
     );
   }
-
-  Widget _buildPhotoWithFilter() {
-    return ValueListenableBuilder(
-      valueListenable: _filterColor,
-      builder: (context, color, child) {
-        return Image.network(
-          'https://docs.flutter.dev/cookbook/img-files/effects/instagram-buttons/millenial-dude.jpg',
-          color: color.withOpacity(0.5),
-          colorBlendMode: BlendMode.color,
-          fit: BoxFit.cover,
-        );
-      },
-    );
-  }
-
-  Widget _buildFilterSelector() {
-    return FilterSelector(
-      onFilterChanged: _onFilterChanged,
-      filters: _filters,
-    );
-  }
 }
 
-@immutable
-class FilterSelector extends StatefulWidget {
-  const FilterSelector({
+class LocationListItem extends StatelessWidget {
+  LocationListItem({
     super.key,
-    required this.filters,
-    required this.onFilterChanged,
-    this.padding = const EdgeInsets.symmetric(vertical: 24.0),
+    required this.imageUrl,
+    required this.name,
+    required this.country,
   });
 
-  final List<Color> filters;
-  final void Function(Color selectedColor) onFilterChanged;
-  final EdgeInsets padding;
-
-  @override
-  State<FilterSelector> createState() => _FilterSelectorState();
-}
-
-class _FilterSelectorState extends State<FilterSelector> {
-  static const _filtersPerScreen = 5;
-  static const _viewportFractionPerItem = 1.0 / _filtersPerScreen;
-
-  late final PageController _controller;
-  late int _page;
-
-  int get filterCount => widget.filters.length;
-
-  Color itemColor(int index) => widget.filters[index % filterCount];
-
-  @override
-  void initState() {
-    super.initState();
-    _page = 0;
-    _controller = PageController(
-      initialPage: _page,
-      viewportFraction: _viewportFractionPerItem,
-    );
-    _controller.addListener(_onPageChanged);
-  }
-
-  void _onPageChanged() {
-    final page = (_controller.page ?? 0).round();
-    if (page != _page) {
-      _page = page;
-      widget.onFilterChanged(widget.filters[page]);
-    }
-  }
-
-  void _onFilterTapped(int index) {
-    _controller.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 450),
-      curve: Curves.ease,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final String imageUrl;
+  final String name;
+  final String country;
+  final GlobalKey _backgroundImageKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
-    return Scrollable(
-      controller: _controller,
-      axisDirection: AxisDirection.right,
-      physics: const PageScrollPhysics(),
-      viewportBuilder: (context, viewportOffset) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final itemSize = constraints.maxWidth * _viewportFractionPerItem;
-            viewportOffset
-              ..applyViewportDimension(constraints.maxWidth)
-              ..applyContentDimensions(0.0, itemSize * (filterCount - 1));
-
-            return Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                _buildShadowGradient(itemSize),
-                _buildCarousel(
-                  viewportOffset: viewportOffset,
-                  itemSize: itemSize,
-                ),
-                _buildSelectionRing(itemSize),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildShadowGradient(double itemSize) {
-    return SizedBox(
-      height: itemSize * 2 + widget.padding.vertical,
-      child: const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              _buildParallaxBackground(context),
+              _buildGradient(),
+              _buildTitleAndSubtitle(),
             ],
           ),
         ),
-        child: SizedBox.expand(),
       ),
     );
   }
 
-  Widget _buildCarousel({
-    required ViewportOffset viewportOffset,
-    required double itemSize,
-  }) {
-    return Container(
-      height: itemSize,
-      margin: widget.padding,
-      child: Flow(
-        delegate: CarouselFlowDelegate(
-          viewportOffset: viewportOffset,
-          filtersPerScreen: _filtersPerScreen,
+  Widget _buildParallaxBackground(BuildContext context) {
+    return Flow(
+      delegate: ParallaxFlowDelegate(
+        scrollable: Scrollable.of(context),
+        listItemContext: context,
+        backgroundImageKey: _backgroundImageKey,
+      ),
+      children: [
+        Image.network(
+          imageUrl,
+          key: _backgroundImageKey,
+          fit: BoxFit.cover,
         ),
+      ],
+    );
+  }
+
+  Widget _buildGradient() {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [0.6, 0.95],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTitleAndSubtitle() {
+    return Positioned(
+      left: 20,
+      bottom: 20,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (int i = 0; i < filterCount; i++)
-            FilterItem(
-              onFilterSelected: () => _onFilterTapped(i),
-              color: itemColor(i),
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+          Text(
+            country,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
         ],
       ),
     );
   }
-
-  Widget _buildSelectionRing(double itemSize) {
-    return IgnorePointer(
-      child: Padding(
-        padding: widget.padding,
-        child: SizedBox(
-          width: itemSize,
-          height: itemSize,
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.fromBorderSide(
-                BorderSide(width: 6.0, color: Colors.white),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-class CarouselFlowDelegate extends FlowDelegate {
-  CarouselFlowDelegate({
-    required this.viewportOffset,
-    required this.filtersPerScreen,
-  }) : super(repaint: viewportOffset);
+class ParallaxFlowDelegate extends FlowDelegate {
+  ParallaxFlowDelegate({
+    required this.scrollable,
+    required this.listItemContext,
+    required this.backgroundImageKey,
+  }) : super(repaint: scrollable.position);
 
-  final ViewportOffset viewportOffset;
-  final int filtersPerScreen;
+
+  final ScrollableState scrollable;
+  final BuildContext listItemContext;
+  final GlobalKey backgroundImageKey;
+
+  @override
+  BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) {
+    return BoxConstraints.tightFor(
+      width: constraints.maxWidth,
+    );
+  }
 
   @override
   void paintChildren(FlowPaintingContext context) {
-    final count = context.childCount;
+    // Calculate the position of this list item within the viewport.
+    final scrollableBox = scrollable.context.findRenderObject() as RenderBox;
+    final listItemBox = listItemContext.findRenderObject() as RenderBox;
+    final listItemOffset = listItemBox.localToGlobal(
+        listItemBox.size.centerLeft(Offset.zero),
+        ancestor: scrollableBox);
 
-    // All available painting width
-    final size = context.size.width;
+    // Determine the percent position of this list item within the
+    // scrollable area.
+    final viewportDimension = scrollable.position.viewportDimension;
+    final scrollFraction =
+        (listItemOffset.dy / viewportDimension).clamp(0.0, 1.0);
 
-    // The distance that a single item "page" takes up from the perspective
-    // of the scroll paging system. We also use this size for the width and
-    // height of a single item.
-    final itemExtent = size / filtersPerScreen;
+    // Calculate the vertical alignment of the background
+    // based on the scroll percent.
+    final verticalAlignment = Alignment(0.0, scrollFraction * 2 - 1);
 
-    // The current scroll position expressed as an item fraction, e.g., 0.0,
-    // or 1.0, or 1.3, or 2.9, etc. A value of 1.3 indicates that item at
-    // index 1 is active, and the user has scrolled 30% towards the item at
-    // index 2.
-    final active = viewportOffset.pixels / itemExtent;
+    // Convert the background alignment into a pixel offset for
+    // painting purposes.
+    final backgroundSize =
+        (backgroundImageKey.currentContext!.findRenderObject() as RenderBox)
+            .size;
+    final listItemSize = context.size;
+    final childRect =
+        verticalAlignment.inscribe(backgroundSize, Offset.zero & listItemSize);
 
-    // Index of the first item we need to paint at this moment.
-    // At most, we paint 3 items to the left of the active item.
-    final min = math.max(0, active.floor() - 3).toInt();
+    // Paint the background.
+    context.paintChild(
+      0,
+      transform:
+          Transform.translate(offset: Offset(0.0, childRect.top)).transform,
+    );
+  }
 
-    // Index of the last item we need to paint at this moment.
-    // At most, we paint 3 items to the right of the active item.
-    final max = math.min(count - 1, active.ceil() + 3).toInt();
+  @override
+  bool shouldRepaint(ParallaxFlowDelegate oldDelegate) {
+    return scrollable != oldDelegate.scrollable ||
+        listItemContext != oldDelegate.listItemContext ||
+        backgroundImageKey != oldDelegate.backgroundImageKey;
+  }
+}
 
-    // Generate transforms for the visible items and sort by distance.
-    for (var index = min; index <= max; index++) {
-      final itemXFromCenter = itemExtent * index - viewportOffset.pixels;
-      final percentFromCenter = 1.0 - (itemXFromCenter / (size / 2)).abs();
-      final itemScale = 0.5 + (percentFromCenter * 0.5);
-      final opacity = 0.25 + (percentFromCenter * 0.75);
+class Parallax extends SingleChildRenderObjectWidget {
+  const Parallax({
+    super.key,
+    required Widget background,
+  }) : super(child: background);
 
-      final itemTransform = Matrix4.identity()
-        ..translate((size - itemExtent) / 2)
-        ..translate(itemXFromCenter)
-        ..translate(itemExtent / 2, itemExtent / 2)
-        ..multiply(Matrix4.diagonal3Values(itemScale, itemScale, 1.0))
-        ..translate(-itemExtent / 2, -itemExtent / 2);
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return RenderParallax(scrollable: Scrollable.of(context));
+  }
 
-      context.paintChild(
-        index,
-        transform: itemTransform,
-        opacity: opacity,
-      );
+  @override
+  void updateRenderObject(
+      BuildContext context, covariant RenderParallax renderObject) {
+    renderObject.scrollable = Scrollable.of(context);
+  }
+}
+
+class ParallaxParentData extends ContainerBoxParentData<RenderBox> {}
+
+class RenderParallax extends RenderBox
+    with RenderObjectWithChildMixin<RenderBox>, RenderProxyBoxMixin {
+  RenderParallax({
+    required ScrollableState scrollable,
+  }) : _scrollable = scrollable;
+
+  ScrollableState _scrollable;
+
+  ScrollableState get scrollable => _scrollable;
+
+  set scrollable(ScrollableState value) {
+    if (value != _scrollable) {
+      if (attached) {
+        _scrollable.position.removeListener(markNeedsLayout);
+      }
+      _scrollable = value;
+      if (attached) {
+        _scrollable.position.addListener(markNeedsLayout);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CarouselFlowDelegate oldDelegate) {
-    return oldDelegate.viewportOffset != viewportOffset;
+  void attach(covariant PipelineOwner owner) {
+    super.attach(owner);
+    _scrollable.position.addListener(markNeedsLayout);
   }
-}
-
-@immutable
-class FilterItem extends StatelessWidget {
-  const FilterItem({
-    super.key,
-    required this.color,
-    this.onFilterSelected,
-  });
-
-  final Color color;
-  final VoidCallback? onFilterSelected;
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onFilterSelected,
-      child: AspectRatio(
-        aspectRatio: 1.0,
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ClipOval(
-            child: Image.network(
-              'https://docs.flutter.dev/cookbook/img-files/effects/instagram-buttons/millenial-texture.jpg',
-              color: color.withOpacity(0.5),
-              colorBlendMode: BlendMode.hardLight,
-            ),
-          ),
-        ),
-      ),
-    );
+  void detach() {
+    _scrollable.position.removeListener(markNeedsLayout);
+    super.detach();
+  }
+
+  @override
+  void setupParentData(covariant RenderObject child) {
+    if (child.parentData is! ParallaxParentData) {
+      child.parentData = ParallaxParentData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    size = constraints.biggest;
+
+    // Force the background to take up all available width
+    // and then scale its height based on the image's aspect ratio.
+    final background = child!;
+    final backgroundImageConstraints =
+        BoxConstraints.tightFor(width: size.width);
+    background.layout(backgroundImageConstraints, parentUsesSize: true);
+
+    // Set the background's local offset, which is zero.
+    (background.parentData as ParallaxParentData).offset = Offset.zero;
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    // Get the size of the scrollable area.
+    final viewportDimension = scrollable.position.viewportDimension;
+
+    // Calculate the global position of this list item.
+    final scrollableBox = scrollable.context.findRenderObject() as RenderBox;
+    final backgroundOffset =
+        localToGlobal(size.centerLeft(Offset.zero), ancestor: scrollableBox);
+
+    // Determine the percent position of this list item within the
+    // scrollable area.
+    final scrollFraction =
+        (backgroundOffset.dy / viewportDimension).clamp(0.0, 1.0);
+
+    // Calculate the vertical alignment of the background
+    // based on the scroll percent.
+    final verticalAlignment = Alignment(0.0, scrollFraction * 2 - 1);
+
+    // Convert the background alignment into a pixel offset for
+    // painting purposes.
+    final background = child!;
+    final backgroundSize = background.size;
+    final listItemSize = size;
+    final childRect =
+        verticalAlignment.inscribe(backgroundSize, Offset.zero & listItemSize);
+
+    // Paint the background.
+    context.paintChild(
+        background,
+        (background.parentData as ParallaxParentData).offset +
+            offset +
+            Offset(0.0, childRect.top));
   }
 }
+
+class Location {
+  const Location({
+    required this.name,
+    required this.place,
+    required this.imageUrl,
+  });
+
+  final String name;
+  final String place;
+  final String imageUrl;
+}
+
+const urlPrefix =
+    'https://docs.flutter.dev/cookbook/img-files/effects/parallax';
+const locations = [
+  Location(
+    name: 'Mount Rushmore',
+    place: 'U.S.A',
+    imageUrl: '$urlPrefix/01-mount-rushmore.jpg',
+  ),
+  Location(
+    name: 'Gardens By The Bay',
+    place: 'Singapore',
+    imageUrl: '$urlPrefix/02-singapore.jpg',
+  ),
+  Location(
+    name: 'Machu Picchu',
+    place: 'Peru',
+    imageUrl: '$urlPrefix/03-machu-picchu.jpg',
+  ),
+  Location(
+    name: 'Vitznau',
+    place: 'Switzerland',
+    imageUrl: '$urlPrefix/04-vitznau.jpg',
+  ),
+  Location(
+    name: 'Bali',
+    place: 'Indonesia',
+    imageUrl: '$urlPrefix/05-bali.jpg',
+  ),
+  Location(
+    name: 'Mexico City',
+    place: 'Mexico',
+    imageUrl: '$urlPrefix/06-mexico-city.jpg',
+  ),
+  Location(
+    name: 'Cairo',
+    place: 'Egypt',
+    imageUrl: '$urlPrefix/07-cairo.jpg',
+  ),
+];
