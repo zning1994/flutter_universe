@@ -1,365 +1,232 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ViewportOffset;
 
 void main() {
   runApp(
     const MaterialApp(
-      home: ExampleCupertinoDownloadButton(),
+      home: ExampleInstagramFilterSelection(),
       debugShowCheckedModeBanner: false,
     ),
   );
 }
 
 @immutable
-class ExampleCupertinoDownloadButton extends StatefulWidget {
-  const ExampleCupertinoDownloadButton({super.key});
+class ExampleInstagramFilterSelection extends StatefulWidget {
+  const ExampleInstagramFilterSelection({super.key});
 
   @override
-  State<ExampleCupertinoDownloadButton> createState() =>
-      _ExampleCupertinoDownloadButtonState();
+  State<ExampleInstagramFilterSelection> createState() =>
+      _ExampleInstagramFilterSelectionState();
 }
 
-class _ExampleCupertinoDownloadButtonState
-    extends State<ExampleCupertinoDownloadButton> {
-  late final List<DownloadController> _downloadControllers;
+class _ExampleInstagramFilterSelectionState
+    extends State<ExampleInstagramFilterSelection> {
+  final _filters = [
+    Colors.white,
+    ...List.generate(
+      Colors.primaries.length,
+      (index) => Colors.primaries[(index * 4) % Colors.primaries.length],
+    )
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _downloadControllers = List<DownloadController>.generate(
-      20,
-      (index) => SimulatedDownloadController(onOpenDownload: () {
-        _openDownload(index);
-      }),
-    );
-  }
+  final _filterColor = ValueNotifier<Color>(Colors.white);
 
-  void _openDownload(int index) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Open App ${index + 1}'),
-      ),
-    );
+  void _onFilterChanged(Color value) {
+    _filterColor.value = value;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: ListView.separated(
-        itemCount: _downloadControllers.length,
-        separatorBuilder: (_, __) => const Divider(),
-        itemBuilder: _buildListItem,
-      ),
-    );
-  }
-
-  Widget _buildListItem(BuildContext context, int index) {
-    final theme = Theme.of(context);
-    final downloadController = _downloadControllers[index];
-
-    return ListTile(
-      leading: const DemoAppIcon(),
-      title: Text(
-        'App ${index + 1}',
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.titleLarge,
-      ),
-      subtitle: Text(
-        'Lorem ipsum dolor #${index + 1}',
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall,
-      ),
-      trailing: SizedBox(
-        width: 96,
-        child: AnimatedBuilder(
-          animation: downloadController,
-          builder: (context, child) {
-            return DownloadButton(
-              status: downloadController.downloadStatus,
-              downloadProgress: downloadController.progress,
-              onDownload: downloadController.startDownload,
-              onCancel: downloadController.stopDownload,
-              onOpen: downloadController.openDownload,
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-@immutable
-class DemoAppIcon extends StatelessWidget {
-  const DemoAppIcon({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const AspectRatio(
-      aspectRatio: 1,
-      child: FittedBox(
-        child: SizedBox(
-          width: 80,
-          height: 80,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.red, Colors.blue],
-              ),
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.ac_unit,
-                color: Colors.white,
-                size: 40,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-enum DownloadStatus {
-  notDownloaded,
-  fetchingDownload,
-  downloading,
-  downloaded,
-}
-
-abstract class DownloadController implements ChangeNotifier {
-  DownloadStatus get downloadStatus;
-  double get progress;
-
-  void startDownload();
-  void stopDownload();
-  void openDownload();
-}
-
-class SimulatedDownloadController extends DownloadController
-    with ChangeNotifier {
-  SimulatedDownloadController({
-    DownloadStatus downloadStatus = DownloadStatus.notDownloaded,
-    double progress = 0.0,
-    required VoidCallback onOpenDownload,
-  })  : _downloadStatus = downloadStatus,
-        _progress = progress,
-        _onOpenDownload = onOpenDownload;
-
-  DownloadStatus _downloadStatus;
-  @override
-  DownloadStatus get downloadStatus => _downloadStatus;
-
-  double _progress;
-  @override
-  double get progress => _progress;
-
-  final VoidCallback _onOpenDownload;
-
-  bool _isDownloading = false;
-
-  @override
-  void startDownload() {
-    if (downloadStatus == DownloadStatus.notDownloaded) {
-      _doSimulatedDownload();
-    }
-  }
-
-  @override
-  void stopDownload() {
-    if (_isDownloading) {
-      _isDownloading = false;
-      _downloadStatus = DownloadStatus.notDownloaded;
-      _progress = 0.0;
-      notifyListeners();
-    }
-  }
-
-  @override
-  void openDownload() {
-    if (downloadStatus == DownloadStatus.downloaded) {
-      _onOpenDownload();
-    }
-  }
-
-  Future<void> _doSimulatedDownload() async {
-    _isDownloading = true;
-    _downloadStatus = DownloadStatus.fetchingDownload;
-    notifyListeners();
-
-    // Wait a second to simulate fetch time.
-    await Future<void>.delayed(const Duration(seconds: 1));
-
-    // If the user chose to cancel the download, stop the simulation.
-    if (!_isDownloading) {
-      return;
-    }
-
-    // Shift to the downloading phase.
-    _downloadStatus = DownloadStatus.downloading;
-    notifyListeners();
-
-    const downloadProgressStops = [0.0, 0.15, 0.45, 0.8, 1.0];
-    for (final stop in downloadProgressStops) {
-      // Wait a second to simulate varying download speeds.
-      await Future<void>.delayed(const Duration(seconds: 1));
-
-      // If the user chose to cancel the download, stop the simulation.
-      if (!_isDownloading) {
-        return;
-      }
-
-      // Update the download progress.
-      _progress = stop;
-      notifyListeners();
-    }
-
-    // Wait a second to simulate a final delay.
-    await Future<void>.delayed(const Duration(seconds: 1));
-
-    // If the user chose to cancel the download, stop the simulation.
-    if (!_isDownloading) {
-      return;
-    }
-
-    // Shift to the downloaded state, completing the simulation.
-    _downloadStatus = DownloadStatus.downloaded;
-    _isDownloading = false;
-    notifyListeners();
-  }
-}
-
-@immutable
-class DownloadButton extends StatelessWidget {
-  const DownloadButton({
-    super.key,
-    required this.status,
-    this.downloadProgress = 0.0,
-    required this.onDownload,
-    required this.onCancel,
-    required this.onOpen,
-    this.transitionDuration = const Duration(milliseconds: 500),
-  });
-
-  final DownloadStatus status;
-  final double downloadProgress;
-  final VoidCallback onDownload;
-  final VoidCallback onCancel;
-  final VoidCallback onOpen;
-  final Duration transitionDuration;
-
-  bool get _isDownloading => status == DownloadStatus.downloading;
-
-  bool get _isFetching => status == DownloadStatus.fetchingDownload;
-
-  bool get _isDownloaded => status == DownloadStatus.downloaded;
-
-  void _onPressed() {
-    switch (status) {
-      case DownloadStatus.notDownloaded:
-        onDownload();
-        break;
-      case DownloadStatus.fetchingDownload:
-        // do nothing.
-        break;
-      case DownloadStatus.downloading:
-        onCancel();
-        break;
-      case DownloadStatus.downloaded:
-        onOpen();
-        break;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _onPressed,
+    return Material(
+      color: Colors.black,
       child: Stack(
         children: [
-          ButtonShapeWidget(
-            transitionDuration: transitionDuration,
-            isDownloaded: _isDownloaded,
-            isDownloading: _isDownloading,
-            isFetching: _isFetching,
-          ),
           Positioned.fill(
-            child: AnimatedOpacity(
-              duration: transitionDuration,
-              opacity: _isDownloading || _isFetching ? 1.0 : 0.0,
-              curve: Curves.ease,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  ProgressIndicatorWidget(
-                    downloadProgress: downloadProgress,
-                    isDownloading: _isDownloading,
-                    isFetching: _isFetching,
-                  ),
-                  if (_isDownloading)
-                    const Icon(
-                      Icons.stop,
-                      size: 14,
-                      color: CupertinoColors.activeBlue,
-                    ),
-                ],
-              ),
-            ),
+            child: _buildPhotoWithFilter(),
+          ),
+          Positioned(
+            left: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+            child: _buildFilterSelector(),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildPhotoWithFilter() {
+    return ValueListenableBuilder(
+      valueListenable: _filterColor,
+      builder: (context, color, child) {
+        return Image.network(
+          'https://docs.flutter.dev/cookbook/img-files/effects/instagram-buttons/millenial-dude.jpg',
+          color: color.withOpacity(0.5),
+          colorBlendMode: BlendMode.color,
+          fit: BoxFit.cover,
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterSelector() {
+    return FilterSelector(
+      onFilterChanged: _onFilterChanged,
+      filters: _filters,
+    );
+  }
 }
 
 @immutable
-class ButtonShapeWidget extends StatelessWidget {
-  const ButtonShapeWidget({
+class FilterSelector extends StatefulWidget {
+  const FilterSelector({
     super.key,
-    required this.isDownloading,
-    required this.isDownloaded,
-    required this.isFetching,
-    required this.transitionDuration,
+    required this.filters,
+    required this.onFilterChanged,
+    this.padding = const EdgeInsets.symmetric(vertical: 24.0),
   });
 
-  final bool isDownloading;
-  final bool isDownloaded;
-  final bool isFetching;
-  final Duration transitionDuration;
+  final List<Color> filters;
+  final void Function(Color selectedColor) onFilterChanged;
+  final EdgeInsets padding;
+
+  @override
+  State<FilterSelector> createState() => _FilterSelectorState();
+}
+
+class _FilterSelectorState extends State<FilterSelector> {
+  static const _filtersPerScreen = 5;
+  static const _viewportFractionPerItem = 1.0 / _filtersPerScreen;
+
+  late final PageController _controller;
+  late int _page;
+
+  int get filterCount => widget.filters.length;
+
+  Color itemColor(int index) => widget.filters[index % filterCount];
+
+  @override
+  void initState() {
+    super.initState();
+    _page = 0;
+    _controller = PageController(
+      initialPage: _page,
+      viewportFraction: _viewportFractionPerItem,
+    );
+    _controller.addListener(_onPageChanged);
+  }
+
+  void _onPageChanged() {
+    final page = (_controller.page ?? 0).round();
+    if (page != _page) {
+      _page = page;
+      widget.onFilterChanged(widget.filters[page]);
+    }
+  }
+
+  void _onFilterTapped(int index) {
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.ease,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    var shape = const ShapeDecoration(
-      shape: StadiumBorder(),
-      color: CupertinoColors.lightBackgroundGray,
-    );
+    return Scrollable(
+      controller: _controller,
+      axisDirection: AxisDirection.right,
+      physics: const PageScrollPhysics(),
+      viewportBuilder: (context, viewportOffset) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final itemSize = constraints.maxWidth * _viewportFractionPerItem;
+            viewportOffset
+              ..applyViewportDimension(constraints.maxWidth)
+              ..applyContentDimensions(0.0, itemSize * (filterCount - 1));
 
-    if (isDownloading || isFetching) {
-      shape = ShapeDecoration(
-        shape: const CircleBorder(),
-        color: Colors.white.withOpacity(0),
-      );
-    }
-
-    return AnimatedContainer(
-      duration: transitionDuration,
-      curve: Curves.ease,
-      width: double.infinity,
-      decoration: shape,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: AnimatedOpacity(
-          duration: transitionDuration,
-          opacity: isDownloading || isFetching ? 0.0 : 1.0,
-          curve: Curves.ease,
-          child: Text(
-            isDownloaded ? 'OPEN' : 'GET',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: CupertinoColors.activeBlue,
+            return Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                _buildShadowGradient(itemSize),
+                _buildCarousel(
+                  viewportOffset: viewportOffset,
+                  itemSize: itemSize,
                 ),
+                _buildSelectionRing(itemSize),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildShadowGradient(double itemSize) {
+    return SizedBox(
+      height: itemSize * 2 + widget.padding.vertical,
+      child: const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.black,
+            ],
+          ),
+        ),
+        child: SizedBox.expand(),
+      ),
+    );
+  }
+
+  Widget _buildCarousel({
+    required ViewportOffset viewportOffset,
+    required double itemSize,
+  }) {
+    return Container(
+      height: itemSize,
+      margin: widget.padding,
+      child: Flow(
+        delegate: CarouselFlowDelegate(
+          viewportOffset: viewportOffset,
+          filtersPerScreen: _filtersPerScreen,
+        ),
+        children: [
+          for (int i = 0; i < filterCount; i++)
+            FilterItem(
+              onFilterSelected: () => _onFilterTapped(i),
+              color: itemColor(i),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionRing(double itemSize) {
+    return IgnorePointer(
+      child: Padding(
+        padding: widget.padding,
+        child: SizedBox(
+          width: itemSize,
+          height: itemSize,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.fromBorderSide(
+                BorderSide(width: 6.0, color: Colors.white),
+              ),
+            ),
           ),
         ),
       ),
@@ -367,38 +234,96 @@ class ButtonShapeWidget extends StatelessWidget {
   }
 }
 
+class CarouselFlowDelegate extends FlowDelegate {
+  CarouselFlowDelegate({
+    required this.viewportOffset,
+    required this.filtersPerScreen,
+  }) : super(repaint: viewportOffset);
+
+  final ViewportOffset viewportOffset;
+  final int filtersPerScreen;
+
+  @override
+  void paintChildren(FlowPaintingContext context) {
+    final count = context.childCount;
+
+    // All available painting width
+    final size = context.size.width;
+
+    // The distance that a single item "page" takes up from the perspective
+    // of the scroll paging system. We also use this size for the width and
+    // height of a single item.
+    final itemExtent = size / filtersPerScreen;
+
+    // The current scroll position expressed as an item fraction, e.g., 0.0,
+    // or 1.0, or 1.3, or 2.9, etc. A value of 1.3 indicates that item at
+    // index 1 is active, and the user has scrolled 30% towards the item at
+    // index 2.
+    final active = viewportOffset.pixels / itemExtent;
+
+    // Index of the first item we need to paint at this moment.
+    // At most, we paint 3 items to the left of the active item.
+    final min = math.max(0, active.floor() - 3).toInt();
+
+    // Index of the last item we need to paint at this moment.
+    // At most, we paint 3 items to the right of the active item.
+    final max = math.min(count - 1, active.ceil() + 3).toInt();
+
+    // Generate transforms for the visible items and sort by distance.
+    for (var index = min; index <= max; index++) {
+      final itemXFromCenter = itemExtent * index - viewportOffset.pixels;
+      final percentFromCenter = 1.0 - (itemXFromCenter / (size / 2)).abs();
+      final itemScale = 0.5 + (percentFromCenter * 0.5);
+      final opacity = 0.25 + (percentFromCenter * 0.75);
+
+      final itemTransform = Matrix4.identity()
+        ..translate((size - itemExtent) / 2)
+        ..translate(itemXFromCenter)
+        ..translate(itemExtent / 2, itemExtent / 2)
+        ..multiply(Matrix4.diagonal3Values(itemScale, itemScale, 1.0))
+        ..translate(-itemExtent / 2, -itemExtent / 2);
+
+      context.paintChild(
+        index,
+        transform: itemTransform,
+        opacity: opacity,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CarouselFlowDelegate oldDelegate) {
+    return oldDelegate.viewportOffset != viewportOffset;
+  }
+}
+
 @immutable
-class ProgressIndicatorWidget extends StatelessWidget {
-  const ProgressIndicatorWidget({
+class FilterItem extends StatelessWidget {
+  const FilterItem({
     super.key,
-    required this.downloadProgress,
-    required this.isDownloading,
-    required this.isFetching,
+    required this.color,
+    this.onFilterSelected,
   });
 
-  final double downloadProgress;
-  final bool isDownloading;
-  final bool isFetching;
+  final Color color;
+  final VoidCallback? onFilterSelected;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: downloadProgress),
-        duration: const Duration(milliseconds: 200),
-        builder: (context, progress, child) {
-          return CircularProgressIndicator(
-            backgroundColor: isDownloading
-                ? CupertinoColors.lightBackgroundGray
-                : Colors.white.withOpacity(0),
-            valueColor: AlwaysStoppedAnimation(isFetching
-                ? CupertinoColors.lightBackgroundGray
-                : CupertinoColors.activeBlue),
-            strokeWidth: 2,
-            value: isFetching ? null : progress,
-          );
-        },
+    return GestureDetector(
+      onTap: onFilterSelected,
+      child: AspectRatio(
+        aspectRatio: 1.0,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ClipOval(
+            child: Image.network(
+              'https://docs.flutter.dev/cookbook/img-files/effects/instagram-buttons/millenial-texture.jpg',
+              color: color.withOpacity(0.5),
+              colorBlendMode: BlendMode.hardLight,
+            ),
+          ),
+        ),
       ),
     );
   }
