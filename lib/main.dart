@@ -57,7 +57,7 @@ class _ScrollableCardState extends State<ScrollableCard> {
     // await Future.delayed(Duration(seconds: 2));
     String jsonData = '''
       [
-        {"title": "Title 1", "content": "Content 1", "timestamp": 1645718554},
+        {"title": "Title 1", "content": "ContentContentContentContentContentContentContentContentContentContentContentContentContentContent 1", "timestamp": 1645718554},
         {"title": "Title 2", "content": "Content 2", "timestamp": 1645718564},
         {"title": "Title 3", "content": "Content 3", "timestamp": 1645718574},
         {"title": "Title 4", "content": "Content 4", "timestamp": 1645718584},
@@ -116,7 +116,18 @@ class _ScrollableCardState extends State<ScrollableCard> {
                 return ListTile(
                   title: Text(item.title),
                   subtitle: Text(item.content),
-                  trailing: Text(DateTime.fromMillisecondsSinceEpoch(item.timestamp * 1000).toString()),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: SizedBox(),
+                      ),
+                      Text(
+                        DateTime.fromMillisecondsSinceEpoch(item.timestamp * 1000).toString(),
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                 );
               }
             },
